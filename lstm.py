@@ -2,8 +2,21 @@ import numpy as np
 import math
 
 class LSTM:
-    """LSTM ...
-
+    """LSTM uses sequences as inputs and returns output sequences. The LSTM
+    architecture maintains a state throughout training, allowing the model
+    to "remember" previous inputs.
+    Instructions:
+        Insantiate the model with LSTM(vocab_size, hidden_size).
+        Initialize two zero valued matrices of size 1 X hidden_size, the state
+    matrix and the output matrix.
+        Initialize the adam optimization parameters for training with the method
+    build_adam_params().
+        Train the model with the loss_function method, repeatedly updating
+    the state and output matrices and the adam_optimization dictionary.
+        To sample text, use
+            sample(sample_size, input_0_vector, state, output) where the state
+        and output matrices are taken from the training step.
+            
     Parameters
     ----------
     vocab_size : int
@@ -34,17 +47,8 @@ class LSTM:
         self.b = self.init_biases([1, vocab_size])
     
     def lstm_cell(self, X, o, state):
-        """LSTM ...
-         Each gate will be of size:
-            inputWeight = vocab, hidden_size
-            outputWeight = hidden_size, hidden_size
-            We add them together inside a sigmoid
-
-            Both are initialized to 0:
-            Output is size 1, hidden_size
-            State is size 1, hidden_size
-            
-            Return output, state
+        """lstm_cell feed forwards once through the network and returns a 
+        new output and updated state.
 
         Parameters
         ----------
@@ -54,6 +58,13 @@ class LSTM:
             hidden_size X hidden_size
         state : array
             1 X hidden_size
+
+        Returns
+        -------
+        output : array
+            The output
+        state : array
+            The updated state
         """
         input_gate = self.sigmoid(np.dot(X, self.ix) + np.dot(o, self.io) + self.ib)
         forget_gate = self.sigmoid(np.dot(X, self.fx) + np.dot(o, self.fo) + self.fb)
@@ -64,15 +75,35 @@ class LSTM:
 
         return output_gate*np.tanh(state), state
 
-    def loss_function(self, X, Y, hprev, o, a_p):
-        """loss_function ...
+    def bptt(self, X, Y, hprev, o, a_p):
+        """bptt trains the weights by feeding a sequence through
+        the model and updating the weights via BackPropagation Through
+        Time. The weights are optimized with the Adam Optimization method.
 
         Parameters
         ---------
+        X : array
+            sequence_size X vocab_size. A sequence of one hot vectors to
+        be fed through the LSTM model
+        Y : array
+            sequence_size X vocab_size. A sequence of one hot target vectors
+        hprev : array
+            1 X hidden. The most recent state
+        o : : array
+            1 X hidden. The most recent output
+        a_p : dict
+            Adam Update Parameters
 
         Returns
         -------
-
+        loss : float
+            The current loss
+        state : array
+            1 X hidden_size. The returned state after the final input
+        outs : array
+            1 X hidden_size. The returned output after the final input
+        a_p : dict
+            Updated Adam Optimization parameters
         """
         xs, ys, hs, ps, ig, fg, og, c, outs = {}, {}, {}, {}, {}, {}, {}, {}, {} # c is the update cell
         hs[-1] = np.copy(hprev)
@@ -83,15 +114,16 @@ class LSTM:
         # The following two lines increase efficiency by allowing two large matrix multiplications rather than 8 separate ones
         x_weight_matrix = [self.ix, self.fx, self.ox, self.cx]
         o_weight_matrix = [self.io, self.fo, self.oo, self.co]
+
         for t in range(len(X)):
             xs[t] = X[t]
             iz, fz, oz, cz = np.reshape(np.dot(xs[t], x_weight_matrix) + np.dot(outs[t-1], o_weight_matrix), [4, 1, self.hidden_size])
             ig[t] = self.sigmoid(iz + self.ib)
             fg[t] = self.sigmoid(fz + self.fb)
             og[t] = self.sigmoid(oz + self.ob)
-            c[t] = np.tanh(cz + self.cb) #a in papers
-            hs[t] = hs[t-1]*fg[t] + ig[t]*c[t] #c in papers
-            outs[t] = og[t]*np.tanh(hs[t]) #ht in papers
+            c[t] = np.tanh(cz + self.cb) # a in papers
+            hs[t] = hs[t-1]*fg[t] + ig[t]*c[t] # c in papers
+            outs[t] = og[t]*np.tanh(hs[t]) # ht in papers
             ys[t] = np.dot(outs[t], self.W) + self.b
             ps[t] = self.softmax(ys[t])
             loss += -np.log(ps[t][0][np.argmax(Y[t])])
@@ -212,8 +244,8 @@ class LSTM:
         sequence_size : int
             Size of the sequence to return
         x : array
-            One hot vector of the character to begin sampling from
             1 X vocab_size
+            One hot vector of the character to begin sampling from
         state : array
             1 X hidden_size
         o : array
@@ -239,7 +271,7 @@ class LSTM:
 
     def init_weights(self, shape):
         """init_weights initializes an array of uniformly distributed
-        values between 0.0 and 1.0 in the given shape
+        values between 0.0 and 1.0 in the given shape.
 
         Parameters
         ---------
@@ -253,7 +285,7 @@ class LSTM:
         return np.random.uniform(size=shape)*0.001
 
     def init_biases(self, shape):
-        """init_biases initializes an array of zeros in the given shape
+        """init_biases initializes an array of zeros in the given shape.
 
         Parameters
         ---------
@@ -267,7 +299,7 @@ class LSTM:
         return np.zeros(shape)
 
     def softmax(self, X):
-        """softmax calculutes the softmaxed values of an input
+        """softmax calculutes the softmaxed values of an input.
 
         Parameters
         ---------
@@ -284,7 +316,7 @@ class LSTM:
 
     def cross_entropy_loss(self, y, y_):
         """cross_entropy_loss calculates the derivative of the softmax function run through
-        the cross entropy function
+        the cross entropy function.
 
         Parameters
         ---------
@@ -296,7 +328,7 @@ class LSTM:
         return y_ - y
 
     def sigmoid(self, X):
-        """sigmoid returns the result of an array computed through the sigmoid function
+        """sigmoid returns the result of an array computed through the sigmoid function.
 
         Parameters
         ---------
@@ -309,7 +341,7 @@ class LSTM:
         return 1/(1+math.e**(-X))
 
     def sigmoid_prime(self, sig):
-        """sigmoid_prime returns the derivative of the sigmoid function
+        """sigmoid_prime returns the derivative of the sigmoid function.
 
         Parameters
         ---------
@@ -322,7 +354,7 @@ class LSTM:
         return sig*(1-sig)
 
     def tanh_prime(self, v):
-        """tanh_prime returns the derivative of the tanh function
+        """tanh_prime returns the derivative of the tanh function.
 
         Parameters
         ---------
@@ -346,19 +378,27 @@ class LSTM:
         which -= lr*grads
 
     def adam_optimizer(self, grads, which, lr=1e-2, b1=0.9, b2=0.99, m=0, v=0, t=0, eps=1e-8):
-        """adam_optimizer ...
+        """adam_optimizer optimizes the given weight matrix via the
+        Adam Optimization algorithm.
 
         Parameters
         ---------
         grads :
         which :
         lr : float
+            Learning Rate
         b1 : float
+            Beta 1, an exponential decay rate
         b2 : float
-        m : float
-        v : float
+            Beta 2, an exponential decay rate
+        m : array
+            1st moment vector
+        v : array
+            2nd moment vector
         t : int
+            Timestep
         eps : float
+            Epsilon
         """
         t += 1
         new_m = b1*m + (1-b1)*grads
@@ -387,10 +427,10 @@ class LSTM:
             sequence_length X vocab_size
         """
 
-
         X = []
         Y = []
         n = len(d)
+
         for i, c in enumerate(sequence[:-1]):
             cc = np.zeros(n)
             cc[d[c]] = 1
@@ -399,3 +439,16 @@ class LSTM:
             yy[d[sequence[i+1]]] = 1
             Y.append(yy)
         return X, Y
+
+    def build_adam_params(self):
+        """build_adam_params returns zero valued adam parameters to be used
+        and updated during the weight update.
+        
+        Returns
+        -------
+        A dict of 14 keys containing a tuple of (0, 0, 0)
+        """
+        tups = (0, 0, 0)
+        adam_params = {'w': tups, 'b': tups, 'ix': tups, 'io': tups, 'fx': tups, 'fo': tups, 'ox': tups, \
+                'oo': tups, 'cx': tups, 'co': tups, 'ib': tups, 'cb': tups, 'fb': tups, 'ob': tups}
+        return adam_params

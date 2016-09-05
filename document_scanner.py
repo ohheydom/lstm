@@ -1,7 +1,8 @@
 import random
 
 class DocumentScanner:
-    """DocumentScanner .... Remember to properly close the file with close_file().
+    """DocumentScanner scans a document and builds string sequences of a given size.
+    Remember to properly close the file with close_file().
 
     Parameters
     ----------
@@ -10,8 +11,8 @@ class DocumentScanner:
     sequence_size : int
         Size of the sequences to return via next_sequence()
     shuffle : bool
-        If given an alphabetized input, such as baby names, cities, etc..., the model
-        will work best if the input file is shuffled and saved as a new file.
+        If given an alphabetized input, such as baby names, cities, etc..., the
+        model will work best if the input file is shuffled and saved as a new file.
     """
     def __init__(self, filename, sequence_size=20, shuffle=False):
         self.f = None
@@ -25,7 +26,8 @@ class DocumentScanner:
             self.f = open(filename, 'r')
 
     def next_sequence(self):
-        """next_sequence...
+        """next_sequence returns a string of the next sequence from the
+        given document.
 
         Returns
         -------
@@ -43,15 +45,15 @@ class DocumentScanner:
         self.f.close()
 
     def shuffle_and_save(self, filename, filename_shuffled):
-        """shuffle_and_save ...
+        """shuffle_and_save shuffles the lines of an input document and
+        saves a new file with the reordered lines.
 
         Parameters
         ----------
-        doc : str
         filename : str
-
-        Returns
-        -------
+            The input filename
+        filename_shuffled : str
+            The new shuffled filename to be written to
         """
         with open(filename, 'r') as f:
             lines = f.readlines()
@@ -60,7 +62,10 @@ class DocumentScanner:
                 new_f.writelines(lines)
 
     def build_character_mappings(self):
-        """build_character_mappings...
+        """build_character_mappings creates two dictionaries from the input
+        document:
+            A mapping from each unique character to indices
+            A mapping from indices to each unique character
 
         Returns
         -------
