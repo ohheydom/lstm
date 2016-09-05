@@ -22,7 +22,7 @@ o = np.zeros([1, hidden_size])
 state = np.zeros([1, hidden_size])
 
 # Train the LSTM and sample every 100 epochs
-for i in range(10000):
+for i in range(1500):
     X, labels = lstm.vectorize_sequence(doc_scanner.next_sequence(), d)
     loss, state, o, adam_params = lstm.loss_function(X, labels, state, o, adam_params)
     if i % 100 == 0:
@@ -32,3 +32,4 @@ for i in range(10000):
         sample_text = lstm.sample(100, x, state, o)
         print "".join(map(lambda r: d_o[r], sample_text))
         print "\n"
+doc_scanner.close_file()

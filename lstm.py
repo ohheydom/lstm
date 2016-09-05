@@ -2,6 +2,16 @@ import numpy as np
 import math
 
 class LSTM:
+    """LSTM ...
+
+    Parameters
+    ----------
+    vocab_size : int
+        Size of the input and output vectors
+    hidden_size : int
+        Size of the hidden state
+    """
+
     def __init__(self, vocab_size=100, hidden_size=100):
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
@@ -24,7 +34,8 @@ class LSTM:
         self.b = self.init_biases([1, vocab_size])
     
     def lstm_cell(self, X, o, state):
-        """ Each gate will be of size:
+        """LSTM ...
+         Each gate will be of size:
             inputWeight = vocab, hidden_size
             outputWeight = hidden_size, hidden_size
             We add them together inside a sigmoid
@@ -34,6 +45,15 @@ class LSTM:
             State is size 1, hidden_size
             
             Return output, state
+
+        Parameters
+        ----------
+        X : array
+            vocab_size X hidden_size
+        o : array
+            hidden_size X hidden_size
+        state : array
+            1 X hidden_size
         """
         input_gate = self.sigmoid(np.dot(X, self.ix) + np.dot(o, self.io) + self.ib)
         forget_gate = self.sigmoid(np.dot(X, self.fx) + np.dot(o, self.fo) + self.fb)
@@ -45,6 +65,15 @@ class LSTM:
         return output_gate*np.tanh(state), state
 
     def loss_function(self, X, Y, hprev, o, a_p):
+        """loss_function ...
+
+        Parameters
+        ---------
+
+        Returns
+        -------
+
+        """
         xs, ys, hs, ps, ig, fg, og, c, outs = {}, {}, {}, {}, {}, {}, {}, {}, {} # c is the update cell
         hs[-1] = np.copy(hprev)
         outs[-1] = np.copy(o)
@@ -172,11 +201,33 @@ class LSTM:
 
         return loss, hs[len(X)-1], outs[len(X)-1], a_p
 
-    def sample(self, sequence, x, state, o):
+    def sample(self, sequence_size, x, state, o):
+        """sample returns an array of indices of size 1 X sequence_size
+        that correspond to characters sampled from a corpus. It uses the
+        updated weights and the current state and output matrices to feed
+        forward through the network and sample values.
+
+        Parameters
+        ---------
+        sequence_size : int
+            Size of the sequence to return
+        x : array
+            One hot vector of the character to begin sampling from
+            1 X vocab_size
+        state : array
+            1 X hidden_size
+        o : array
+            hidden_size X hidden_size
+
+        Returns
+        -------
+        seq : array of indices
+            1 X sequence_size
+        """
         temp_p = np.copy(state)
         temp_o = np.copy(o)
         seq = []
-        for _ in range(sequence):
+        for _ in range(sequence_size):
             seq.append(np.argmax(x))
             temp_o, temp_p = self.lstm_cell(x, temp_o, temp_p)
             n_letter = np.dot(temp_o, self.W)
@@ -187,35 +238,128 @@ class LSTM:
         return seq
 
     def init_weights(self, shape):
+        """init_weights initializes an array of uniformly distributed
+        values between 0.0 and 1.0 in the given shape
+
+        Parameters
+        ---------
+        shape : array
+        An array of integers
+
+        Returns
+        -------
+        An array of size shape
+        """
         return np.random.uniform(size=shape)*0.001
 
     def init_biases(self, shape):
+        """init_biases initializes an array of zeros in the given shape
+
+        Parameters
+        ---------
+        shape : array
+        An array of integers
+
+        Returns
+        -------
+        An array of size shape
+        """
         return np.zeros(shape)
 
     def softmax(self, X):
+        """softmax calculutes the softmaxed values of an input
+
+        Parameters
+        ---------
+        X : array
+
+        Returns
+        -------
+        An array of softmaxed values
+
+        """
         out = np.exp(X)
         sums = np.sum(out, axis=1)
         return np.divide(out, np.reshape(sums, [-1, 1]))
 
-    def cross_entropy_cost(self, y, y_):
-        return np.mean(-y*np.log(y_))
-
     def cross_entropy_loss(self, y, y_):
+        """cross_entropy_loss calculates the derivative of the softmax function run through
+        the cross entropy function
+
+        Parameters
+        ---------
+
+        Returns
+        -------
+
+        """
         return y_ - y
 
     def sigmoid(self, X):
+        """sigmoid returns the result of an array computed through the sigmoid function
+
+        Parameters
+        ---------
+        X : array
+
+        Returns
+        -------
+        An array of values run through the function
+        """
         return 1/(1+math.e**(-X))
 
     def sigmoid_prime(self, sig):
+        """sigmoid_prime returns the derivative of the sigmoid function
+
+        Parameters
+        ---------
+        sig : An array of sigmoid values
+
+        Returns
+        -------
+        An array of gradients run through the function
+        """
         return sig*(1-sig)
 
     def tanh_prime(self, v):
+        """tanh_prime returns the derivative of the tanh function
+
+        Parameters
+        ---------
+        v : array
+
+        Returns
+        -------
+        An array of gradients run through the function
+        """
         return 1/(np.cosh(v)**2)
 
     def gradient_descent_optimizer(self, grads, which, lr=1e-2):
+        """gradient_descent_optimizer ...
+
+        Parameters
+        ---------
+        grads :
+        which :
+        lr : float
+        """
         which -= lr*grads
 
     def adam_optimizer(self, grads, which, lr=1e-2, b1=0.9, b2=0.99, m=0, v=0, t=0, eps=1e-8):
+        """adam_optimizer ...
+
+        Parameters
+        ---------
+        grads :
+        which :
+        lr : float
+        b1 : float
+        b2 : float
+        m : float
+        v : float
+        t : int
+        eps : float
+        """
         t += 1
         new_m = b1*m + (1-b1)*grads
         new_v = b2*v + (1-b2)*grads**2
@@ -225,10 +369,25 @@ class LSTM:
         return new_m, new_v, t
 
     def vectorize_sequence(self, sequence, d):
-        """Returns two matrices
-            Input: len(word) X vocab_size 
-            Target: len(word) X vocab size
+        """vectorize_sequence takes in a sequence and returns one-hot input
+        and target arrays for the LSTM.
+
+        Parameters
+        ---------
+        sequence : string
+            A sequence of characters
+        d : dict
+            A mapping of characters to indices
+
+        Returns
+        -------
+        X : array
+            sequence_length X vocab_size
+        y : array
+            sequence_length X vocab_size
         """
+
+
         X = []
         Y = []
         n = len(d)
