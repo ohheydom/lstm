@@ -9,13 +9,12 @@ class LSTM:
         Insantiate the model with LSTM(vocab_size, hidden_size).
         Initialize two zero valued matrices of size 1 X hidden_size, the state
     matrix and the output matrix.
-        Initialize the adam optimization parameters for training with the method
+        Initialize the adam optimization parameters with the method
     build_adam_params().
-        Train the model with the loss_function method, repeatedly updating
-    the state and output matrices and the adam_optimization dictionary.
-        To sample text, use
-            sample(sample_size, input_0_vector, state, output) where the state
-        and output matrices are taken from the training step.
+        Train the model with the bptt method, repeatedly updating the state 
+    and output matrices and the adam_optimization dictionary.
+        To sample text, use sample(sample_size, input_0_vector, state, output) 
+        where the state and output matrices are taken from the training step.
             
     Parameters
     ----------
@@ -175,61 +174,34 @@ class LSTM:
 
         # AdamUpdate
         mix, vix, tix = a_p['ix']
-        a_p['ix'] = self.adam_optimizer(d_ix, self.ix, m=mix, v=vix, t=tix)
-
         mio, vio, tio = a_p['io']
-        a_p['io'] = self.adam_optimizer(d_io, self.io, m=mio, v=vio, t=tio)
-
-        mfx, vfx, tfx = a_p['fx']
-        a_p['fx'] = self.adam_optimizer(d_fx, self.fx, m=mfx, v=vfx, t=tfx)
-
-        mfo, vfo, tfo = a_p['fo']
-        a_p['fo'] = self.adam_optimizer(d_fo, self.fo, m=mfo, v=vfo, t=tfo)
-
-        mox, vox, tox = a_p['ox']
-        a_p['ox'] = self.adam_optimizer(d_ox, self.ox, m=mox, v=vox, t=tox)
-
-        moo, voo, too = a_p['oo']
-        a_p['oo'] = self.adam_optimizer(d_oo, self.oo, m=moo, v=voo, t=too)
-
-        mcx, vcx, tcx = a_p['cx']
-        a_p['cx'] = self.adam_optimizer(d_cx, self.cx, m=mcx, v=vcx, t=tcx)
-
-        mco, vco, tco = a_p['co']
-        a_p['co'] = self.adam_optimizer(d_co, self.co, m=mco, v=vco, t=tco)
-
         mib, vib, tib = a_p['ib']
-        a_p['ib'] = self.adam_optimizer(d_ib, self.ib, m=mib, v=vib, t=tib)
-
-        mcb, vcb, tcb = a_p['cb']
-        a_p['cb'] = self.adam_optimizer(d_cb, self.cb, m=mcb, v=vcb, t=tcb)
-
+        mfx, vfx, tfx = a_p['fx']
+        mfo, vfo, tfo = a_p['fo']
         mfb, vfb, tfb = a_p['fb']
-        a_p['fb'] = self.adam_optimizer(d_fb, self.fb, m=mfb, v=vfb, t=tfb)
-
+        mox, vox, tox = a_p['ox']
+        moo, voo, too = a_p['oo']
         mob, vob, tob = a_p['ob']
-        a_p['ob'] = self.adam_optimizer(d_ob, self.ob, m=mob, v=vob, t=tob)
-
+        mcx, vcx, tcx = a_p['cx']
+        mco, vco, tco = a_p['co']
+        mcb, vcb, tcb = a_p['cb']
         mw, vw, tw = a_p['w']
-        a_p['w'] = self.adam_optimizer(d_W, self.W, m=mw, v=vw, t=tw)
-
         mb, vb, tb = a_p['b']
-        a_p['b'] = self.adam_optimizer(d_b, self.b, m=mb, v=vb, t=tb)
 
-        #self.gradient_descent_optimizer(d_ix, self.ix)
-        #self.gradient_descent_optimizer(d_io, self.io)
-        #self.gradient_descent_optimizer(d_fx, self.fx)
-        #self.gradient_descent_optimizer(d_fo, self.fo)
-        #self.gradient_descent_optimizer(d_ox, self.ox)
-        #self.gradient_descent_optimizer(d_oo, self.oo)
-        #self.gradient_descent_optimizer(d_cx, self.cx)
-        #self.gradient_descent_optimizer(d_co, self.co)
-        #self.gradient_descent_optimizer(d_ib, self.ib)
-        #self.gradient_descent_optimizer(d_cb, self.cb)
-        #self.gradient_descent_optimizer(d_fb, self.fb)
-        #self.gradient_descent_optimizer(d_ob, self.ob)
-        #self.gradient_descent_optimizer(d_W, self.W)
-        #self.gradient_descent_optimizer(d_b, self.b)
+        a_p['ix'] = self.adam_optimizer(d_ix, self.ix, m=mix, v=vix, t=tix)
+        a_p['io'] = self.adam_optimizer(d_io, self.io, m=mio, v=vio, t=tio)
+        a_p['ib'] = self.adam_optimizer(d_ib, self.ib, m=mib, v=vib, t=tib)
+        a_p['fx'] = self.adam_optimizer(d_fx, self.fx, m=mfx, v=vfx, t=tfx)
+        a_p['fo'] = self.adam_optimizer(d_fo, self.fo, m=mfo, v=vfo, t=tfo)
+        a_p['fb'] = self.adam_optimizer(d_fb, self.fb, m=mfb, v=vfb, t=tfb)
+        a_p['ox'] = self.adam_optimizer(d_ox, self.ox, m=mox, v=vox, t=tox)
+        a_p['oo'] = self.adam_optimizer(d_oo, self.oo, m=moo, v=voo, t=too)
+        a_p['ob'] = self.adam_optimizer(d_ob, self.ob, m=mob, v=vob, t=tob)
+        a_p['cx'] = self.adam_optimizer(d_cx, self.cx, m=mcx, v=vcx, t=tcx)
+        a_p['co'] = self.adam_optimizer(d_co, self.co, m=mco, v=vco, t=tco)
+        a_p['cb'] = self.adam_optimizer(d_cb, self.cb, m=mcb, v=vcb, t=tcb)
+        a_p['w'] = self.adam_optimizer(d_W, self.W, m=mw, v=vw, t=tw)
+        a_p['b'] = self.adam_optimizer(d_b, self.b, m=mb, v=vb, t=tb)
 
         return loss, hs[len(X)-1], outs[len(X)-1], a_p
 
@@ -423,7 +395,7 @@ class LSTM:
         -------
         X : array
             sequence_length X vocab_size
-        y : array
+        Y : array
             sequence_length X vocab_size
         """
 

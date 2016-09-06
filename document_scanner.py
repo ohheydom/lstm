@@ -35,8 +35,9 @@ class DocumentScanner:
         """
         s = self.f.read(self.sequence_size)
 
-        if len(s) < self.sequence_size:
+        while len(s) < self.sequence_size:
             self.f.seek(0,0)
+            s += self.f.read(self.sequence_size-len(s))
         return s
 
     def close_file(self):
