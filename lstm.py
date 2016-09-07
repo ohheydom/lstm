@@ -144,12 +144,12 @@ class LSTM:
         de_ctm1 = np.zeros_like(c[0])
 
         for t in reversed(range(len(X))):
-            de_dp = self.cross_entropy_loss(Y[t], p[t])
-            de_dW += np.dot(h[t].T, de_dp)
-            de_db += de_dp
+            de_dy = self.cross_entropy_loss(Y[t], p[t])
+            de_dW += np.dot(h[t].T, de_dy)
+            de_db += de_dy
 
             dy_dh = self.W
-            de_dh = np.dot(de_dp, dy_dh.T)
+            de_dh = np.dot(de_dy, dy_dh.T)
 
             de_dc = de_dh*og[t]*self.tanh_prime(c[t]) + de_ctm1
 
