@@ -30,31 +30,31 @@ class LSTM:
 
         #Learnable Params
         self.ix = self.init_weights([vocab_size, hidden_size])
-        self.io = self.init_weights([hidden_size, hidden_size])
+        self.ih = self.init_weights([hidden_size, hidden_size])
         self.ib = self.init_biases([1, hidden_size])
         self.fx = self.init_weights([vocab_size, hidden_size])
-        self.fo = self.init_weights([hidden_size, hidden_size])
+        self.fh = self.init_weights([hidden_size, hidden_size])
         self.fb = self.init_biases([1, hidden_size])
         self.ox = self.init_weights([vocab_size, hidden_size])
-        self.oo = self.init_weights([hidden_size, hidden_size])
+        self.oh = self.init_weights([hidden_size, hidden_size])
         self.ob = self.init_biases([1, hidden_size])
-        self.cx = self.init_weights([vocab_size, hidden_size])
-        self.co = self.init_weights([hidden_size, hidden_size])
-        self.cb = self.init_biases([1, hidden_size])
+        self.ax = self.init_weights([vocab_size, hidden_size])
+        self.ah = self.init_weights([hidden_size, hidden_size])
+        self.ab = self.init_biases([1, hidden_size])
 
         self.W = self.init_weights([hidden_size, vocab_size])
         self.b = self.init_biases([1, vocab_size])
     
-    def lstm_cell(self, X, o, state):
+    def lstm_cell(self, X, h, state):
         """lstm_cell feed forwards once through the network and returns a 
         new output and updated state.
 
         Parameters
         ----------
         X : array
-            vocab_size X hidden_size
-        o : array
-            hidden_size X hidden_size
+            vocab_size X hidden_size. Input
+        h : array
+            hidden_size X hidden_size. Previous output
         state : array
             1 X hidden_size
 
@@ -65,11 +65,11 @@ class LSTM:
         state : array
             The updated state
         """
-        input_gate = self.sigmoid(np.dot(X, self.ix) + np.dot(o, self.io) + self.ib)
-        forget_gate = self.sigmoid(np.dot(X, self.fx) + np.dot(o, self.fo) + self.fb)
-        output_gate = self.sigmoid(np.dot(X, self.ox) + np.dot(o, self.oo) + self.ob)
+        input_gate = self.sigmoid(np.dot(X, self.ix) + np.dot(h, self.ih) + self.ib)
+        forget_gate = self.sigmoid(np.dot(X, self.fx) + np.dot(h, self.fh) + self.fb)
+        output_gate = self.sigmoid(np.dot(X, self.ox) + np.dot(h, self.oh) + self.ob)
 
-        update = np.tanh(np.dot(X, self.cx) + np.dot(o, self.co) + self.cb)
+        update = np.tanh(np.dot(X, self.ax) + np.dot(h, self.ah) + self.ab)
         state = forget_gate*state + update*input_gate
 
         return output_gate*np.tanh(state), state
@@ -99,113 +99,120 @@ class LSTM:
             The current loss
         state : array
             1 X hidden_size. The returned state after the final input
-        outs : array
+        h : array
             1 X hidden_size. The returned output after the final input
         a_p : dict
             Updated Adam Optimization parameters
         """
-        xs, ys, hs, ps, ig, fg, og, c, outs = {}, {}, {}, {}, {}, {}, {}, {}, {} # c is the update cell
-        hs[-1] = np.copy(hprev)
-        outs[-1] = np.copy(o)
+        xs, y, c, p, ig, fg, og, a, h = {}, {}, {}, {}, {}, {}, {}, {}, {}
+        c[-1] = np.copy(hprev)
+        h[-1] = np.copy(o)
         loss = 0
 
         # Forward Pass
         # The following two lines increase efficiency by allowing two large matrix multiplications rather than 8 separate ones
-        x_weight_matrix = [self.ix, self.fx, self.ox, self.cx]
-        o_weight_matrix = [self.io, self.fo, self.oo, self.co]
+        x_weight_matrix = [self.ix, self.fx, self.ox, self.ax]
+        h_weight_matrix = [self.ih, self.fh, self.oh, self.ah]
+
+        # ig, fg, og = input, forget, and output gates
+        # a = memory cell
+        # c = state
+        # h = output
+        # y = pre-softmaxed target labels
+        # p = softmaxed target labels
 
         for t in range(len(X)):
             xs[t] = X[t]
-            iz, fz, oz, cz = np.reshape(np.dot(xs[t], x_weight_matrix) + np.dot(outs[t-1], o_weight_matrix), [4, 1, self.hidden_size])
+            iz, fz, oz, az = np.reshape(np.dot(xs[t], x_weight_matrix) + np.dot(h[t-1], h_weight_matrix), [4, 1, self.hidden_size])
             ig[t] = self.sigmoid(iz + self.ib)
             fg[t] = self.sigmoid(fz + self.fb)
             og[t] = self.sigmoid(oz + self.ob)
-            c[t] = np.tanh(cz + self.cb) # a in papers
-            hs[t] = hs[t-1]*fg[t] + ig[t]*c[t] # c in papers
-            outs[t] = og[t]*np.tanh(hs[t]) # ht in papers
-            ys[t] = np.dot(outs[t], self.W) + self.b
-            ps[t] = self.softmax(ys[t])
-            loss += -np.log(ps[t][0][np.argmax(Y[t])])
+            a[t] = np.tanh(az + self.ab)
+            c[t] = c[t-1]*fg[t] + ig[t]*a[t]
+            h[t] = og[t]*np.tanh(c[t])
+            y[t] = np.dot(h[t], self.W) + self.b
+            p[t] = self.softmax(y[t])
+            loss += -np.log(p[t][0][np.argmax(Y[t])])
 
         # Backprop
-        d_ix, d_io, d_ib = np.zeros_like(self.ix), np.zeros_like(self.io), np.zeros_like(self.ib)
-        d_ox, d_oo, d_ob = np.zeros_like(self.ox), np.zeros_like(self.oo), np.zeros_like(self.ob)
-        d_fx, d_fo, d_fb = np.zeros_like(self.fx), np.zeros_like(self.fo), np.zeros_like(self.fb)
-        d_cx, d_co, d_cb = np.zeros_like(self.cx), np.zeros_like(self.co), np.zeros_like(self.cb)
-        d_W = np.zeros_like(self.W)
-        d_b = np.zeros_like(self.b)
-        d_hstm = np.zeros_like(hs[0]) #d_hstminus1
+        de_ix, de_ih, de_ib = np.zeros_like(self.ix), np.zeros_like(self.ih), np.zeros_like(self.ib)
+        de_ox, de_oh, de_ob = np.zeros_like(self.ox), np.zeros_like(self.oh), np.zeros_like(self.ob)
+        de_fx, de_fh, de_fb = np.zeros_like(self.fx), np.zeros_like(self.fh), np.zeros_like(self.fb)
+        de_ax, de_ah, de_ab = np.zeros_like(self.ax), np.zeros_like(self.ah), np.zeros_like(self.ab)
+        de_dW = np.zeros_like(self.W)
+        de_db = np.zeros_like(self.b)
+        de_ctm1 = np.zeros_like(c[0])
 
         for t in reversed(range(len(X))):
-            d_y = self.cross_entropy_loss(Y[t], ps[t])
-            d_W += np.dot(outs[t].T, d_y)
-            d_b += d_y
+            de_dp = self.cross_entropy_loss(Y[t], p[t])
+            de_dW += np.dot(h[t].T, de_dp)
+            de_db += de_dp
 
-            d_out = self.W
-            d_e = np.dot(d_y, d_out.T)
+            dy_dh = self.W
+            de_dh = np.dot(de_dp, dy_dh.T)
 
-            d_hst = d_e*og[t]*self.tanh_prime(hs[t]) + d_hstm
+            de_dc = de_dh*og[t]*self.tanh_prime(c[t]) + de_ctm1
 
-            d_ogf = d_e*np.tanh(hs[t])
-            d_oraw = d_ogf * self.sigmoid_prime(og[t])
-            d_ox += np.dot(np.reshape(xs[t], [-1, 1]), d_oraw)
-            d_oo += np.dot(np.reshape(outs[t-1], [-1, 1]), d_oraw)
-            d_ob += d_oraw
+            de_dog = de_dh*np.tanh(c[t])
+            de_dogac = de_dog * self.sigmoid_prime(og[t])
+            de_ox += np.dot(np.reshape(xs[t], [-1, 1]), de_dogac)
+            de_oh += np.dot(np.reshape(h[t-1], [-1, 1]), de_dogac)
+            de_ob += de_dogac
 
-            d_fg = d_hst*hs[t-1]
-            d_hstm = d_hst*fg[t]
-            d_ig = d_hst*c[t]
-            d_c = d_hst*ig[t]
+            de_fg = de_dc*c[t-1]
+            de_ctm1 = de_dc*fg[t]
+            de_ig = de_dc*a[t]
+            de_a = de_dc*ig[t]
 
-            d_fraw = d_fg*self.sigmoid_prime(fg[t])
-            d_fx += np.dot(np.reshape(xs[t], [-1, 1]), d_fraw)
-            d_fo += np.dot(np.reshape(outs[t-1], [-1, 1]), d_fraw)
-            d_fb += d_fraw
+            de_dfgac = de_fg*self.sigmoid_prime(fg[t])
+            de_fx += np.dot(np.reshape(xs[t], [-1, 1]), de_dfgac)
+            de_fh += np.dot(np.reshape(h[t-1], [-1, 1]), de_dfgac)
+            de_fb += de_dfgac
 
-            d_iraw = d_ig*self.sigmoid_prime(ig[t])
-            d_ix += np.dot(np.reshape(xs[t], [-1, 1]),d_iraw)
-            d_io += np.dot(np.reshape(outs[t-1], [-1, 1]),d_iraw)
-            d_ib += d_iraw
+            de_digac = de_ig*self.sigmoid_prime(ig[t])
+            de_ix += np.dot(np.reshape(xs[t], [-1, 1]),de_digac)
+            de_ih += np.dot(np.reshape(h[t-1], [-1, 1]),de_digac)
+            de_ib += de_digac
 
-            d_craw = d_c*self.tanh_prime(c[t])
-            d_cx += np.dot(np.reshape(xs[t], [-1, 1]), d_craw)
-            d_co += np.dot(np.reshape(outs[t-1], [-1, 1]), d_craw)
-            d_cb += d_craw
+            de_daac = de_a*self.tanh_prime(a[t])
+            de_ax += np.dot(np.reshape(xs[t], [-1, 1]), de_daac)
+            de_ah += np.dot(np.reshape(h[t-1], [-1, 1]), de_daac)
+            de_ab += de_daac
 
         # AdamUpdate
         mix, vix, tix = a_p['ix']
-        mio, vio, tio = a_p['io']
+        mih, vih, tih = a_p['ih']
         mib, vib, tib = a_p['ib']
         mfx, vfx, tfx = a_p['fx']
-        mfo, vfo, tfo = a_p['fo']
+        mfh, vfh, tfh = a_p['fh']
         mfb, vfb, tfb = a_p['fb']
         mox, vox, tox = a_p['ox']
-        moo, voo, too = a_p['oo']
+        moh, voh, toh = a_p['oh']
         mob, vob, tob = a_p['ob']
-        mcx, vcx, tcx = a_p['cx']
-        mco, vco, tco = a_p['co']
-        mcb, vcb, tcb = a_p['cb']
+        max_, vax, tax = a_p['ax']
+        mah, vah, tah = a_p['ah']
+        mab, vab, tab = a_p['ab']
         mw, vw, tw = a_p['w']
         mb, vb, tb = a_p['b']
 
-        a_p['ix'] = self.adam_optimizer(d_ix, self.ix, m=mix, v=vix, t=tix)
-        a_p['io'] = self.adam_optimizer(d_io, self.io, m=mio, v=vio, t=tio)
-        a_p['ib'] = self.adam_optimizer(d_ib, self.ib, m=mib, v=vib, t=tib)
-        a_p['fx'] = self.adam_optimizer(d_fx, self.fx, m=mfx, v=vfx, t=tfx)
-        a_p['fo'] = self.adam_optimizer(d_fo, self.fo, m=mfo, v=vfo, t=tfo)
-        a_p['fb'] = self.adam_optimizer(d_fb, self.fb, m=mfb, v=vfb, t=tfb)
-        a_p['ox'] = self.adam_optimizer(d_ox, self.ox, m=mox, v=vox, t=tox)
-        a_p['oo'] = self.adam_optimizer(d_oo, self.oo, m=moo, v=voo, t=too)
-        a_p['ob'] = self.adam_optimizer(d_ob, self.ob, m=mob, v=vob, t=tob)
-        a_p['cx'] = self.adam_optimizer(d_cx, self.cx, m=mcx, v=vcx, t=tcx)
-        a_p['co'] = self.adam_optimizer(d_co, self.co, m=mco, v=vco, t=tco)
-        a_p['cb'] = self.adam_optimizer(d_cb, self.cb, m=mcb, v=vcb, t=tcb)
-        a_p['w'] = self.adam_optimizer(d_W, self.W, m=mw, v=vw, t=tw)
-        a_p['b'] = self.adam_optimizer(d_b, self.b, m=mb, v=vb, t=tb)
+        a_p['ix'] = self.adam_optimizer(de_ix, self.ix, m=mix, v=vix, t=tix)
+        a_p['ih'] = self.adam_optimizer(de_ih, self.ih, m=mih, v=vih, t=tih)
+        a_p['ib'] = self.adam_optimizer(de_ib, self.ib, m=mib, v=vib, t=tib)
+        a_p['fx'] = self.adam_optimizer(de_fx, self.fx, m=mfx, v=vfx, t=tfx)
+        a_p['fh'] = self.adam_optimizer(de_fh, self.fh, m=mfh, v=vfh, t=tfh)
+        a_p['fb'] = self.adam_optimizer(de_fb, self.fb, m=mfb, v=vfb, t=tfb)
+        a_p['ox'] = self.adam_optimizer(de_ox, self.ox, m=mox, v=vox, t=tox)
+        a_p['oh'] = self.adam_optimizer(de_oh, self.oh, m=moh, v=voh, t=toh)
+        a_p['ob'] = self.adam_optimizer(de_ob, self.ob, m=mob, v=vob, t=tob)
+        a_p['ax'] = self.adam_optimizer(de_ax, self.ax, m=max_, v=vax, t=tax)
+        a_p['ah'] = self.adam_optimizer(de_ah, self.ah, m=mah, v=vah, t=tah)
+        a_p['ab'] = self.adam_optimizer(de_ab, self.ab, m=mab, v=vab, t=tab)
+        a_p['w'] = self.adam_optimizer(de_dW, self.W, m=mw, v=vw, t=tw)
+        a_p['b'] = self.adam_optimizer(de_db, self.b, m=mb, v=vb, t=tb)
 
-        return loss, hs[len(X)-1], outs[len(X)-1], a_p
+        return loss, c[len(X)-1], h[len(X)-1], a_p
 
-    def sample(self, sequence_size, x, state, o):
+    def sample(self, sequence_size, x, state, h):
         """sample returns an array of indices of size 1 X sequence_size
         that correspond to characters sampled from a corpus. It uses the
         updated weights and the current state and output matrices to feed
@@ -220,7 +227,7 @@ class LSTM:
             One hot vector of the character to begin sampling from
         state : array
             1 X hidden_size
-        o : array
+        h : array
             hidden_size X hidden_size
 
         Returns
@@ -229,12 +236,12 @@ class LSTM:
             1 X sequence_size
         """
         temp_p = np.copy(state)
-        temp_o = np.copy(o)
+        temp_h = np.copy(h)
         seq = []
         for _ in range(sequence_size):
             seq.append(np.argmax(x))
-            temp_o, temp_p = self.lstm_cell(x, temp_o, temp_p)
-            n_letter = np.dot(temp_o, self.W)
+            temp_h, temp_p = self.lstm_cell(x, temp_h, temp_p)
+            n_letter = np.dot(temp_h, self.W)
             p_letter = np.exp(n_letter) / np.sum(np.exp(n_letter))
             ix = np.random.choice(range(self.vocab_size), p=p_letter.ravel())
             x = np.zeros(self.vocab_size)
@@ -421,6 +428,6 @@ class LSTM:
         A dict of 14 keys containing a tuple of (0, 0, 0)
         """
         tups = (0, 0, 0)
-        adam_params = {'w': tups, 'b': tups, 'ix': tups, 'io': tups, 'fx': tups, 'fo': tups, 'ox': tups, \
-                'oo': tups, 'cx': tups, 'co': tups, 'ib': tups, 'cb': tups, 'fb': tups, 'ob': tups}
+        adam_params = {'w': tups, 'b': tups, 'ix': tups, 'ih': tups, 'fx': tups, 'fh': tups, 'ox': tups, \
+                'oh': tups, 'ax': tups, 'ah': tups, 'ib': tups, 'ab': tups, 'fb': tups, 'ob': tups}
         return adam_params
