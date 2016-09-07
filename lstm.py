@@ -343,7 +343,7 @@ class LSTM:
         -------
         An array of gradients run through the function
         """
-        return 1/(np.cosh(v)**2)
+        return 1-v**2
 
     def gradient_descent_optimizer(self, grads, which, lr=1e-2):
         """gradient_descent_optimizer ...
