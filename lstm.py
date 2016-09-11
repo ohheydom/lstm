@@ -6,7 +6,7 @@ class LSTM:
     architecture maintains a state throughout training, allowing the model
     to "remember" previous inputs.
     Instructions:
-        Insantiate the model with LSTM(vocab_size, hidden_size).
+        Instantiate the model with LSTM(vocab_size, hidden_size).
         Initialize two zero valued matrices of size 1 X hidden_size, the state
     matrix and the output matrix.
         Initialize the adam optimization parameters with the method
