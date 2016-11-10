@@ -2,14 +2,19 @@ import numpy as np
 from document_scanner import DocumentScanner
 from lstm import LSTM
 
-filename = 'data/nirvana-lyrics' # Filename on which to train the LSTM model
-hidden_size = 100 # Size of the hidden layer of neurons
-sequence_size = 100 # Number of steps for which to unroll the LSTM
+# Filename on which to train the LSTM model
+filename = 'data/nirvana-lyrics'
+
+# Size of the hidden layer of neurons
+hidden_size = 100
+
+# Number of steps for which to unroll the LSTM
+sequence_size = 100
 
 doc_scanner = DocumentScanner(filename, sequence_size)
 d, d_o = doc_scanner.build_character_mappings()
 
-vocab_size = len(d) 
+vocab_size = len(d)
 
 # Create the LSTM
 lstm = LSTM(vocab_size, hidden_size)
@@ -35,3 +40,4 @@ for i in range(20000):
 
 # Close the document being trained on
 doc_scanner.close_file()
+

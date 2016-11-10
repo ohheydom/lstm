@@ -1,6 +1,7 @@
 import numpy as np
 import math
 
+
 class LSTM:
     """LSTM uses sequences as inputs and returns output sequences. The LSTM
     architecture maintains a state throughout training, allowing the model
@@ -11,11 +12,11 @@ class LSTM:
     matrix and the output matrix.
         Initialize the adam optimization parameters with the method
     build_adam_params().
-        Train the model with the bptt method, repeatedly updating the state 
+        Train the model with the bptt method, repeatedly updating the state
     and output matrices and the adam_optimization dictionary.
-        To sample text, use sample(sample_size, input_0_vector, state, output) 
+        To sample text, use sample(sample_size, input_0_vector, state, output)
         where the state and output matrices are taken from the training step.
-            
+
     Parameters
     ----------
     vocab_size : int
@@ -28,7 +29,7 @@ class LSTM:
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
 
-        #Learnable Params
+        # Learnable Params
         self.ix = self.init_weights([vocab_size, hidden_size])
         self.ih = self.init_weights([hidden_size, hidden_size])
         self.ib = self.init_biases([1, hidden_size])
@@ -44,9 +45,9 @@ class LSTM:
 
         self.W = self.init_weights([hidden_size, vocab_size])
         self.b = self.init_biases([1, vocab_size])
-    
+
     def lstm_cell(self, X, h, state):
-        """lstm_cell feed forwards once through the network and returns a 
+        """lstm_cell feed forwards once through the network and returns a
         new output and updated state.
 
         Parameters
@@ -110,7 +111,8 @@ class LSTM:
         loss = 0
 
         # Forward Pass
-        # The following two lines increase efficiency by allowing two large matrix multiplications rather than 8 separate ones
+        # The following two lines increase efficiency by allowing two
+        # large matrix multiplications rather than 8 separate ones
         x_weight_matrix = [self.ix, self.fx, self.ox, self.ax]
         h_weight_matrix = [self.ih, self.fh, self.oh, self.ah]
 
@@ -123,7 +125,9 @@ class LSTM:
 
         for t in range(len(X)):
             xs[t] = X[t]
-            iz, fz, oz, az = np.reshape(np.dot(xs[t], x_weight_matrix) + np.dot(h[t-1], h_weight_matrix), [4, 1, self.hidden_size])
+            iz, fz, oz, az = np.reshape(np.dot(xs[t], x_weight_matrix) +
+                                        np.dot(h[t-1], h_weight_matrix),
+                                        [4, 1, self.hidden_size])
             ig[t] = self.sigmoid(iz + self.ib)
             fg[t] = self.sigmoid(fz + self.fb)
             og[t] = self.sigmoid(oz + self.ob)
@@ -135,10 +139,18 @@ class LSTM:
             loss += -np.log(p[t][0][np.argmax(Y[t])])
 
         # Backprop
-        de_ix, de_ih, de_ib = np.zeros_like(self.ix), np.zeros_like(self.ih), np.zeros_like(self.ib)
-        de_ox, de_oh, de_ob = np.zeros_like(self.ox), np.zeros_like(self.oh), np.zeros_like(self.ob)
-        de_fx, de_fh, de_fb = np.zeros_like(self.fx), np.zeros_like(self.fh), np.zeros_like(self.fb)
-        de_ax, de_ah, de_ab = np.zeros_like(self.ax), np.zeros_like(self.ah), np.zeros_like(self.ab)
+        de_ix, de_ih = np.zeros_like(self.ix), np.zeros_like(self.ih)
+        de_ib = np.zeros_like(self.ib)
+
+        de_ox, de_oh = np.zeros_like(self.ox), np.zeros_like(self.oh)
+        de_ob = np.zeros_like(self.ob)
+
+        de_fx, de_fh = np.zeros_like(self.fx), np.zeros_like(self.fh)
+        de_fb = np.zeros_like(self.fb)
+
+        de_ax, de_ah = np.zeros_like(self.ax), np.zeros_like(self.ah)
+        de_ab = np.zeros_like(self.ab)
+
         de_dW = np.zeros_like(self.W)
         de_db = np.zeros_like(self.b)
         de_ctm1 = np.zeros_like(c[0])
@@ -170,8 +182,8 @@ class LSTM:
             de_fb += de_dfgac
 
             de_digac = de_ig*self.sigmoid_prime(ig[t])
-            de_ix += np.dot(np.reshape(xs[t], [-1, 1]),de_digac)
-            de_ih += np.dot(np.reshape(h[t-1], [-1, 1]),de_digac)
+            de_ix += np.dot(np.reshape(xs[t], [-1, 1]), de_digac)
+            de_ih += np.dot(np.reshape(h[t-1], [-1, 1]), de_digac)
             de_ib += de_digac
 
             de_daac = de_a*self.tanh_prime(a[t])
@@ -294,8 +306,8 @@ class LSTM:
         return np.divide(out, np.reshape(sums, [-1, 1]))
 
     def cross_entropy_loss(self, y, y_):
-        """cross_entropy_loss calculates the derivative of the softmax function run through
-        the cross entropy function.
+        """cross_entropy_loss calculates the derivative of the softmax
+        function run through the cross entropy function.
 
         Parameters
         ---------
@@ -307,7 +319,8 @@ class LSTM:
         return y_ - y
 
     def sigmoid(self, X):
-        """sigmoid returns the result of an array computed through the sigmoid function.
+        """sigmoid returns the result of an array computed through the
+        sigmoid function.
 
         Parameters
         ---------
@@ -356,7 +369,8 @@ class LSTM:
         """
         which -= lr*grads
 
-    def adam_optimizer(self, grads, which, lr=1e-2, b1=0.9, b2=0.99, m=0, v=0, t=0, eps=1e-8):
+    def adam_optimizer(self, grads, which, lr=1e-2, b1=0.9, b2=0.99,
+                       m=0, v=0, t=0, eps=1e-8):
         """adam_optimizer optimizes the given weight matrix via the
         Adam Optimization algorithm.
 
@@ -422,12 +436,15 @@ class LSTM:
     def build_adam_params(self):
         """build_adam_params returns zero valued adam parameters to be used
         and updated during the weight update.
-        
+
         Returns
         -------
         A dict of 14 keys containing a tuple of (0, 0, 0)
         """
         tups = (0, 0, 0)
-        adam_params = {'w': tups, 'b': tups, 'ix': tups, 'ih': tups, 'fx': tups, 'fh': tups, 'ox': tups, \
-                'oh': tups, 'ax': tups, 'ah': tups, 'ib': tups, 'ab': tups, 'fb': tups, 'ob': tups}
+        adam_params = {'w': tups, 'b': tups, 'ix': tups, 'ih': tups,
+                       'fx': tups, 'fh': tups, 'ox': tups, 'oh': tups,
+                       'ax': tups, 'ah': tups, 'ib': tups, 'ab': tups,
+                       'fb': tups, 'ob': tups}
         return adam_params
+

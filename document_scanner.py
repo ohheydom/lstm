@@ -1,8 +1,9 @@
 import random
 
+
 class DocumentScanner:
-    """DocumentScanner scans a document and builds string sequences of a given size.
-    Remember to properly close the file with close_file().
+    """DocumentScanner scans a document and builds string sequences of a given
+    size. Remember to properly close the file with close_file().
 
     Parameters
     ----------
@@ -12,13 +13,14 @@ class DocumentScanner:
         Size of the sequences to return via next_sequence()
     shuffle : bool
         If given an alphabetized input, such as baby names, cities, etc..., the
-        model will work best if the input file is shuffled and saved as a new file.
+        model will work best if the input file is shuffled and saved as a
+        new file.
     """
     def __init__(self, filename, sequence_size=20, shuffle=False):
         self.f = None
         self.sequence_size = sequence_size
 
-        if shuffle == True:
+        if shuffle:
             filename_shuffled = "{}-shuffled".format(filename)
             self.shuffle_and_save(filename, filename_shuffled)
             self.f = open(filename_shuffled, 'r')
@@ -36,7 +38,7 @@ class DocumentScanner:
         s = self.f.read(self.sequence_size)
 
         while len(s) < self.sequence_size:
-            self.f.seek(0,0)
+            self.f.seek(0, 0)
             s += self.f.read(self.sequence_size-len(s))
         return s
 
@@ -75,14 +77,19 @@ class DocumentScanner:
         d_i_to_c : dict
             Dict that maps indices to characters
         """
-        d_c_to_i = {} #maps character to an index
-        d_i_to_c = {} #maps index to character
+
+        # Maps character to an index
+        d_c_to_i = {}
+
+        # Maps index to character
+        d_i_to_c = {}
 
         for l in self.f:
             for c in l:
-                if not c in d_c_to_i:
+                if c not in d_c_to_i:
                     d_c_to_i[c] = len(d_c_to_i)
                     d_i_to_c[len(d_i_to_c)] = c
-        self.f.seek(0,0)
+        self.f.seek(0, 0)
 
         return d_c_to_i, d_i_to_c
+
